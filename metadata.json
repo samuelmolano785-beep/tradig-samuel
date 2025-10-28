@@ -1,0 +1,8 @@
+{
+  "name": "Analista de Trading con IA de Gemini",
+  "description": "Un avanzado panel de trading impulsado por IA. Aprovecha la IA conversacional en tiempo real, obtén análisis de mercado actualizados, analiza imágenes de gráficos y utiliza razonamiento complejo para mejorar tus estrategias de trading.",
+  "requestFramePermissions": [
+    "camera",
+    "microphone"
+  ]
+}

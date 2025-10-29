@@ -1,8 +1,9 @@
 import { GoogleGenAI, Chat, GenerateContentResponse, Part } from "@google/genai";
 import { fileToGenerativePart } from "../utils/fileUtils";
 
-// FIX: Use environment variable for API key as per coding guidelines.
-const getGenAI = () => new GoogleGenAI({ apiKey: process.env.API_KEY });
+// FIX: Hardcode the API key directly as requested by the user to fix the browser error.
+const API_KEY = "AIzaSyCZzOrruDL2uLNa3xnzJKPH5RLTEDo7_-U";
+const getGenAI = () => new GoogleGenAI({ apiKey: API_KEY });
 
 // Chat
 export const createChat = (): Chat => {

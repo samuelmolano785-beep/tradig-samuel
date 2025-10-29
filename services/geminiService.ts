@@ -1,15 +1,17 @@
 import { GoogleGenAI, Chat, GenerateContentResponse, Part } from "@google/genai";
 import { fileToGenerativePart } from "../utils/fileUtils";
 
-const getGenAI = () => new GoogleGenAI({ apiKey: process.env.API_KEY as string });
+// FIX: Use environment variable for API key as per coding guidelines.
+const getGenAI = () => new GoogleGenAI({ apiKey: process.env.API_KEY });
 
 // Chat
 export const createChat = (): Chat => {
     const ai = getGenAI();
     return ai.chats.create({
         model: 'gemini-2.5-flash',
-        tools: [{googleSearch: {}}],
+        // FIX: 'tools' must be inside the 'config' object.
         config: {
+            tools: [{googleSearch: {}}],
             systemInstruction: `Eres un Analista de Trading experto que utiliza IA. Tu principal directiva es utilizar SIEMPRE la herramienta de Búsqueda de Google para acceder a datos de mercado en tiempo real, noticias financieras recientes y análisis de sentimiento actual antes de formular cualquier respuesta. Tu objetivo es proporcionar recomendaciones precisas y actualizadas. Si el usuario especifica un Broker (ej. XTB, Binance), intenta encontrar datos específicos de precios o spreads para ese broker si es posible, de lo contrario, realiza un análisis de mercado general.
 
 Tienes cuatro modos de operación:

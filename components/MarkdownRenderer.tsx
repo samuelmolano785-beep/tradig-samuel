@@ -1,4 +1,3 @@
-
 import React from 'react';
 
 // This is a simplified markdown renderer. For a full implementation, a library like 'react-markdown' would be used.
@@ -7,11 +6,17 @@ export const MarkdownRenderer: React.FC<{ content: string }> = ({ content }) => 
   const renderLines = (text: string) => {
     const lines = text.split('\n');
     let inCodeBlock = false;
+    let inChartJsonBlock = false;
     let codeBlockContent = '';
 
     const elements = [];
     for (let i = 0; i < lines.length; i++) {
         let line = lines[i];
+
+        if (line.startsWith('```json:chart')) {
+            inChartJsonBlock = true;
+            continue;
+        }
 
         if (line.startsWith('```')) {
             if (inCodeBlock) {
@@ -21,13 +26,22 @@ export const MarkdownRenderer: React.FC<{ content: string }> = ({ content }) => 
                     </pre>
                 );
                 codeBlockContent = '';
+                inCodeBlock = false;
+            } else if (inChartJsonBlock) {
+                inChartJsonBlock = false;
             }
-            inCodeBlock = !inCodeBlock;
+             else {
+                inCodeBlock = true;
+            }
             continue;
         }
 
         if (inCodeBlock) {
             codeBlockContent += line + '\n';
+            continue;
+        }
+
+        if (inChartJsonBlock) {
             continue;
         }
         

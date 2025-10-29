@@ -1,11 +1,12 @@
 import React, { useState, useRef, useEffect, useCallback } from 'react';
 import { createChat, sendMessageStreamToChat } from './services/geminiService';
-import type { ChatMessage, ExecutedTrade } from './types';
+import type { ChatMessage, ExecutedTrade, PriceChartData } from './types';
 import { Chat } from '@google/genai';
 import { MarkdownRenderer } from './components/MarkdownRenderer';
 import { Spinner } from './components/ui/Spinner';
 import { Card, CardContent } from './components/ui/Card';
 import { TradingTerminal } from './components/TradingTerminal';
+import { PriceChart } from './components/PriceChart';
 
 const BotIcon: React.FC<{ className?: string }> = ({ className }) => (
   <svg className={className} xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
@@ -53,7 +54,7 @@ const marketSuggestions = ['BTC/USD', 'ETH/USD', 'EUR/USD', 'ORO/USD', 'NASDAQ 1
 const questionSuggestions = [
     '¿Qué mercado opero hoy?',
     'Gané 50 USD en mi última operación',
-    '¿Cuál es la criptomoneda con mayor potencial ahora?',
+    'Proyección avanzada para BTC/USD',
     'Analiza el sentimiento del mercado para ORO/USD'
 ];
 
@@ -70,6 +71,7 @@ const App: React.FC = () => {
   const chatRef = useRef<Chat | null>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const streamingChartData = useRef<{ [messageId: string]: string }>({});
 
   useEffect(() => {
     if (!chatRef.current) {
@@ -78,7 +80,7 @@ const App: React.FC = () => {
             {
                 id: Date.now().toString(),
                 role: 'model',
-                content: '¡Hola! Soy tu Analista de Trading con IA. Sube una imagen de un gráfico o pregúntame directamente en qué mercado invertir. También puedes decirme si ganaste o perdiste una operación para registrarlo. ¿Cómo te ayudo hoy?'
+                content: '¡Hola! Soy tu Analista de Trading con IA. Sube una imagen de un gráfico, pídeme una "proyección avanzada" para ver un gráfico predictivo o pregúntame directamente en qué mercado invertir. ¿Cómo te ayudo hoy?'
             }
         ]);
     }
@@ -208,6 +210,8 @@ const App: React.FC = () => {
     
     const messageForAI = `Pregunta del usuario: "${currentPrompt}". Marco de tiempo a considerar: "${timeframe}". Broker: "${broker}"`;
 
+    let chartJsonDetected = false;
+
     try {
       const stream = await sendMessageStreamToChat(chatRef.current, messageForAI, currentImage ?? undefined);
       
@@ -222,6 +226,28 @@ const App: React.FC = () => {
             if (lastMessage) {
                 let needsUpdate = false;
                 if (chunkText) {
+                    if (chunkText.includes('```json:chart')) {
+                        chartJsonDetected = true;
+                        streamingChartData.current[modelMessageId] = '';
+                    }
+
+                    if (chartJsonDetected) {
+                        streamingChartData.current[modelMessageId] += chunkText;
+                        if (streamingChartData.current[modelMessageId].includes('```')) {
+                            const fullJsonBlock = streamingChartData.current[modelMessageId];
+                            const jsonContent = fullJsonBlock.substring(fullJsonBlock.indexOf('{'), fullJsonBlock.lastIndexOf('}') + 1);
+                            try {
+                                const parsedChartData: PriceChartData = JSON.parse(jsonContent);
+                                lastMessage.chartData = parsedChartData;
+                                delete streamingChartData.current[modelMessageId];
+                                chartJsonDetected = false;
+                            } catch (e) {
+                                console.error("Failed to parse chart JSON:", e);
+                                // The JSON might be incomplete, wait for the next chunk
+                            }
+                        }
+                    }
+
                     lastMessage.content += chunkText;
                     needsUpdate = true;
                 }
@@ -294,6 +320,7 @@ const App: React.FC = () => {
                               msg.role === 'user' ? 'bg-cyan-600 text-white' : 'bg-slate-800 text-slate-200'
                           }`}>
                              {msg.imageUrl && <img src={msg.imageUrl} alt="User upload" className="max-w-xs rounded-md mb-2" />}
+                             {msg.chartData && <PriceChart data={msg.chartData} />}
                              {msg.content ? <MarkdownRenderer content={msg.content} /> : (isLoading && <Spinner />)}
                              {msg.sources && msg.sources.length > 0 && (
                                  <div className="mt-4 pt-3 border-t border-slate-700">

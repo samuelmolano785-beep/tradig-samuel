@@ -1,20 +1,17 @@
-import { GoogleGenAI, Chat, Part } from "@google/genai";
+import { GoogleGenAI } from "@google/genai";
 import { fileToGenerativePart } from "../utils/fileUtils";
 
-// CRITICAL FIX: Assign process.env.API_KEY to a variable first.
-// This prevents build tools from creating invalid syntax like { "KEY" } when using shorthand properties.
-const apiKey = process.env.API_KEY;
+const apiKey = "AIzaSyCZzOrruDL2uLNa3xnzJKPH5RLTEDo7_-U";
 
-const getGenAI = () => new GoogleGenAI({ apiKey: apiKey });
+const genAI = new GoogleGenAI({ apiKey });
 
-// Chat
-export const createChat = (): Chat => {
-    const ai = getGenAI();
-    return ai.chats.create({
-        model: 'gemini-3-flash-preview',
-        config: {
-            tools: [{googleSearch: {}}],
-            systemInstruction: `Eres un "Crypto Sniper IA" experto. Tu prioridad es la precisión, la rapidez y la gestión de riesgo.
+export const createChat = () => {
+  return genAI.chats.create({
+    model: "gemini-1.5-flash",
+    config: {
+      tools: [{ googleSearch: {} }],
+      systemInstruction: `
+Eres un "Crypto Sniper IA" experto. Tu prioridad es la precisión, la rapidez y la gestión de riesgo.
 
 FORMATO OBLIGATORIO PARA SEÑALES:
 Cada vez que sugieras una operación, DEBES incluir este bloque JSON EXACTO al final de tu respuesta.
@@ -32,18 +29,25 @@ Cada vez que sugieras una operación, DEBES incluir este bloque JSON EXACTO al f
 }
 \`\`\`
 
-Si el usuario sube una imagen, analiza el gráfico técnico (velas, patrones, indicadores) y genera un JSON de tipo \`json:chart\` simulando la proyección futura.
+Si el usuario sube una imagen, analiza el gráfico técnico y genera un JSON \`json:chart\`.
 
-Mantén el texto conversacional breve y directo ("Directo al grano"). Usa formato Markdown para resaltar precios y acciones.`,
-        },
-    });
+Mantén el texto breve y directo.
+`
+    }
+  });
 };
 
-export const sendMessageStreamToChat = async (chat: Chat, message: string, image?: File) => {
-    if (image) {
-        const imagePart = await fileToGenerativePart(image);
-        const contents: Part[] = [{text: message}, imagePart];
-        return chat.sendMessageStream({ message: contents });
-    }
-    return chat.sendMessageStream({ message });
+export const sendMessageStreamToChat = async (
+  chat: any,
+  message: string,
+  image?: File
+) => {
+  if (image) {
+    const imagePart = await fileToGenerativePart(image);
+    return chat.sendMessageStream({
+      message: [{ text: message }, imagePart]
+    });
+  }
+
+  return chat.sendMessageStream({ message });
 };

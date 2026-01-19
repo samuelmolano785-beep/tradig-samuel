@@ -1,3 +1,4 @@
+
 export interface PriceChartData {
     historicalData: number[];
     predictedData: number[];
@@ -9,6 +10,17 @@ export interface PriceChartData {
     takeProfit: number;
     timeLabels: string[];
 }
+
+export interface TradeSignal {
+    symbol: string;
+    action: 'COMPRAR (LONG)' | 'VENDER (SHORT)';
+    entryPrice: number;
+    targetPrice: number;
+    stopLoss: number;
+    leverage: string;
+    recommendedAmount: string; // e.g., "10% del capital" or "$100"
+    reason: string;
+}
   
 export interface ChatMessage {
   id: string;
@@ -19,6 +31,7 @@ export interface ChatMessage {
   tradeExecuted?: boolean;
   tradeUpdateApplied?: boolean;
   chartData?: PriceChartData;
+  signalData?: TradeSignal; // New field for signals
 }
 
 export type LoadingState = 'idle' | 'loading' | 'success' | 'error';

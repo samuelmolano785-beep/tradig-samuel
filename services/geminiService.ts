@@ -5,7 +5,7 @@ import { fileToGenerativePart } from "../utils/fileUtils";
 // CRITICAL FIX: Assign process.env.API_KEY to a variable first.
 const apiKey = process.env.API_KEY;
 
-const getGenAI = () => new GoogleGenAI({ apiKey: apiKey });
+const getGenAI = () => new GoogleGenAI({ "AIzaSyCZzOrruDL2uLNa3xnzJKPH5RLTEDo7_-U" });
 
 // Chat
 export const createChat = (): Chat => {

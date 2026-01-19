@@ -2,21 +2,23 @@
 import { GoogleGenAI, Chat, GenerateContentResponse, Part } from "@google/genai";
 import { fileToGenerativePart } from "../utils/fileUtils";
 
-// Use the environment variable for security
-const getGenAI = () => new GoogleGenAI({ apiKey: process.env.API_KEY });
+// FIX: Hardcode the API key directly as requested by the user to fix the browser error.
+const API_KEY = "AIzaSyCZzOrruDL2uLNa3xnzJKPH5RLTEDo7_-U";
+const getGenAI = () => new GoogleGenAI({ apiKey: API_KEY });
 
 // Chat
 export const createChat = (): Chat => {
     const ai = getGenAI();
     return ai.chats.create({
         model: 'gemini-2.5-flash',
+        // FIX: 'tools' must be inside the 'config' object.
         config: {
             tools: [{googleSearch: {}}],
             systemInstruction: `Eres un "Crypto Sniper IA" experto. Tu trabajo es decir al usuario EXACTAMENTE qué comprar, cuánto invertir, cuándo entrar y cuándo salir.
 
 DIRECTIVAS CRÍTICAS:
 1.  **Sé Decisivo:** No digas "podrías considerar". Di "COMPRA ESTO".
-2.  **Señales Visuales:** Cuando recomiendes una moneda específica, DEBES generar un bloque JSON especial \`json:signal\` (formato abajo). Usa símbolos estándar como BTC/USDT, ETH/USDT, SOL/USDT.
+2.  **Señales Visuales:** Cuando recomiendes una moneda específica, DEBES generar un bloque JSON especial \`json:signal\` (formato abajo).
 3.  **Gestión:** Siempre define Entry (Entrada), Target (Salida/Take Profit) y Stop Loss.
 
 FORMATOS DE RESPUESTA:

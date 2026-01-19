@@ -8,7 +8,7 @@ import { Spinner } from './components/ui/Spinner';
 import { Card, CardContent } from './components/ui/Card';
 import { TradingTerminal } from './components/TradingTerminal';
 import { PriceChart } from './components/PriceChart';
-import { CryptoTicker, CryptoPrice } from './components/CryptoTicker';
+import { CryptoTicker } from './components/CryptoTicker';
 import { TradeSignalCard } from './components/TradeSignalCard';
 
 const BotIcon: React.FC<{ className?: string }> = ({ className }) => (
@@ -65,18 +65,6 @@ const TerminalIcon: React.FC<{ className?: string }> = ({ className }) => (
     </svg>
 );
 
-// Initial Market Data with USDT pairs to match AI output
-const initialCoins: CryptoPrice[] = [
-  { symbol: 'BTC/USDT', price: 64230.50, change: 1.2 },
-  { symbol: 'ETH/USDT', price: 3450.12, change: -0.5 },
-  { symbol: 'SOL/USDT', price: 145.80, change: 3.4 },
-  { symbol: 'BNB/USDT', price: 590.20, change: 0.1 },
-  { symbol: 'PEPE/USDT', price: 0.00000850, change: 15.2 },
-  { symbol: 'DOGE/USDT', price: 0.16, change: 5.2 },
-  { symbol: 'XRP/USDT', price: 0.62, change: -1.1 },
-  { symbol: 'ADA/USDT', price: 0.45, change: 0.8 },
-];
-
 const marketSuggestions = ['BTC/USDT', 'SOL/USDT', 'PEPE/USDT', 'DOGE/USDT', 'ETH/USDT'];
 const questionSuggestions = [
     'Dame una Señal de Entrada',
@@ -96,10 +84,6 @@ const App: React.FC = () => {
   const [executedTrades, setExecutedTrades] = useState<ExecutedTrade[]>([]);
   const [currentOrder, setCurrentOrder] = useState<Omit<ExecutedTrade, 'id' | 'status'> | null>(null);
   
-  // Market Simulation State
-  const [coins, setCoins] = useState<CryptoPrice[]>(initialCoins);
-  const [currentPrices, setCurrentPrices] = useState<Record<string, number>>({});
-
   // Mobile View State
   const [activeTab, setActiveTab] = useState<'chat' | 'terminal'>('chat');
 
@@ -110,42 +94,6 @@ const App: React.FC = () => {
   // Streaming buffers
   const streamingChartData = useRef<{ [messageId: string]: string }>({});
   const streamingSignalData = useRef<{ [messageId: string]: string }>({});
-
-  // Initialize prices
-  useEffect(() => {
-      const priceMap = initialCoins.reduce((acc, coin) => ({ ...acc, [coin.symbol]: coin.price }), {});
-      setCurrentPrices(priceMap);
-  }, []);
-
-  // Simulate Live Market Data
-  useEffect(() => {
-    const interval = setInterval(() => {
-      setCoins(prevCoins => {
-        const newCoins = prevCoins.map(coin => {
-          // More volatility for PEPE/DOGE
-          const isMeme = coin.symbol.includes('PEPE') || coin.symbol.includes('DOGE');
-          const volatility = isMeme ? 0.005 : 0.001; 
-          
-          const changePercent = (Math.random() * volatility * 2) - volatility;
-          const newPrice = coin.price * (1 + changePercent);
-          
-          return {
-            ...coin,
-            price: newPrice,
-            change: coin.change + (changePercent * 100)
-          };
-        });
-        
-        // Update price map for fast lookup in Terminal
-        const priceMap = newCoins.reduce((acc, coin) => ({ ...acc, [coin.symbol]: coin.price }), {});
-        setCurrentPrices(priceMap);
-        
-        return newCoins;
-      });
-    }, 2000); // 2 second updates
-
-    return () => clearInterval(interval);
-  }, []);
 
   useEffect(() => {
     if (!chatRef.current) {
@@ -186,6 +134,7 @@ const App: React.FC = () => {
     return parseFloat(priceString.replace(/[^0-9.-]+/g,""));
   };
 
+  // Triggered by the "Ejecutar" button inside the TradeSignalCard
   const handleExecuteSignal = (signal: TradeSignal) => {
       const newOrder: Omit<ExecutedTrade, 'id' | 'status'> = {
           market: signal.symbol,
@@ -195,6 +144,10 @@ const App: React.FC = () => {
           takeProfit: signal.targetPrice,
       };
       setCurrentOrder(newOrder);
+      
+      // Update message state if needed (optional)
+      
+      // Switch to terminal view
       if (window.innerWidth < 1024) {
           setActiveTab('terminal');
       }
@@ -359,6 +312,7 @@ const App: React.FC = () => {
                          }
                     }
 
+                    // Append text only if not purely inside a JSON block (simplified logic: just append everything, Renderer handles hiding code blocks)
                     lastMessage.content += chunkText;
                     needsUpdate = true;
                 }
@@ -423,8 +377,8 @@ const App: React.FC = () => {
           </a>
         </header>
 
-        {/* Crypto Ticker - Now receives coins as props for sync */}
-        <CryptoTicker coins={coins} />
+        {/* Crypto Ticker */}
+        <CryptoTicker />
 
         {/* Main Content Area */}
         <div className="flex flex-1 overflow-hidden relative">
@@ -441,6 +395,7 @@ const App: React.FC = () => {
                                 <div className={`flex-1 max-w-[85%] ${msg.role === 'user' ? 'text-right' : ''}`}>
                                     <div className={`rounded-2xl p-4 shadow-sm inline-block text-left ${msg.role === 'user' ? 'bg-cyan-600 text-white rounded-tr-none' : (msg.role === 'system' ? 'bg-red-900/30 border border-red-800 rounded-tl-none' : 'bg-slate-800 border border-slate-700 rounded-tl-none')}`}>
                                         
+                                        {/* Render Image Preview in Chat */}
                                         {msg.imageUrl && (
                                             <div className="mb-3">
                                                 <img src={msg.imageUrl} alt="Uploaded chart" className="max-w-full h-auto rounded-lg border border-slate-600 max-h-60 object-contain" />
@@ -449,6 +404,7 @@ const App: React.FC = () => {
 
                                         <MarkdownRenderer content={msg.content} />
 
+                                        {/* Render NEW Signal Card if available */}
                                         {msg.signalData && (
                                             <TradeSignalCard 
                                                 signal={msg.signalData} 
@@ -456,8 +412,10 @@ const App: React.FC = () => {
                                             />
                                         )}
 
+                                        {/* Render Chart if available */}
                                         {msg.chartData && <PriceChart data={msg.chartData} />}
 
+                                        {/* Sources */}
                                         {msg.sources && msg.sources.length > 0 && (
                                             <div className="mt-3 pt-3 border-t border-slate-700/50">
                                                 <p className="text-xs text-slate-500 mb-1 flex items-center gap-1"><LinkIcon className="w-3 h-3"/> Fuentes:</p>
@@ -471,6 +429,7 @@ const App: React.FC = () => {
                                             </div>
                                         )}
                                         
+                                        {/* Legacy Button for old format */}
                                         {msg.role === 'model' && canExecuteTradeOld(msg.content) && !msg.tradeExecuted && !msg.signalData && (
                                             <div className="mt-4">
                                                 <button 
@@ -489,6 +448,7 @@ const App: React.FC = () => {
                                             </div>
                                         )}
 
+                                        {/* Action Button for Trade Updates */}
                                         {msg.role === 'model' && isTradeUpdate(msg.content) && !msg.tradeUpdateApplied && (
                                             <div className="mt-4">
                                                 <button
@@ -530,6 +490,7 @@ const App: React.FC = () => {
                  <div className="p-4 bg-slate-800/80 border-t border-slate-700 backdrop-blur-sm z-20">
                     <div className="max-w-4xl mx-auto space-y-4">
                         
+                        {/* Suggestion Chips */}
                         <div className="flex gap-2 overflow-x-auto no-scrollbar pb-1">
                             {messages.length === 1 && (
                                 <>
@@ -555,6 +516,7 @@ const App: React.FC = () => {
                             ))}
                         </div>
 
+                        {/* Controls */}
                         <div className="flex flex-wrap gap-4 text-sm text-slate-400 bg-slate-900/50 p-3 rounded-lg border border-slate-700/50">
                              <div className="flex items-center gap-2">
                                 <label className="text-xs uppercase font-bold tracking-wider text-slate-500">Tiempo:</label>
@@ -584,6 +546,7 @@ const App: React.FC = () => {
                             </div>
                         </div>
 
+                        {/* Text Input */}
                         <div className="relative">
                             <textarea
                                 value={prompt}
@@ -598,6 +561,7 @@ const App: React.FC = () => {
                                 className="w-full bg-slate-950 text-white rounded-xl border border-slate-700 p-4 pr-32 focus:outline-none focus:ring-2 focus:ring-cyan-500/50 resize-none h-[60px] custom-scrollbar"
                             />
                             
+                            {/* Image Preview Overlay */}
                             {imagePreview && (
                                 <div className="absolute top-[-60px] left-0 bg-slate-800 p-2 rounded-lg border border-slate-600 shadow-xl flex items-center gap-2 animate-in fade-in slide-in-from-bottom-2">
                                     <img src={imagePreview} alt="Preview" className="w-10 h-10 object-cover rounded" />
@@ -644,7 +608,6 @@ const App: React.FC = () => {
                 <TradingTerminal 
                     trades={executedTrades} 
                     currentOrder={currentOrder}
-                    currentPrices={currentPrices}
                     onCloseTrade={handleCloseTrade}
                     onConfirmOrder={handleConfirmOrder}
                     onCancelOrder={() => setCurrentOrder(null)}

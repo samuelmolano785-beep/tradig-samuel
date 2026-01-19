@@ -1,9 +1,11 @@
-
 import { GoogleGenAI, Chat, Part } from "@google/genai";
 import { fileToGenerativePart } from "../utils/fileUtils";
 
-// FIX: Use process.env.API_KEY correctly with the labeled property 'apiKey'.
-const getGenAI = () => new GoogleGenAI({ apiKey: process.env.API_KEY });
+// CRITICAL FIX: Assign process.env.API_KEY to a variable first.
+// This prevents build tools from creating invalid syntax like { "KEY" } when using shorthand properties.
+const apiKey = process.env.API_KEY;
+
+const getGenAI = () => new GoogleGenAI({ apiKey: apiKey });
 
 // Chat
 export const createChat = (): Chat => {
@@ -12,10 +14,10 @@ export const createChat = (): Chat => {
         model: 'gemini-3-flash-preview',
         config: {
             tools: [{googleSearch: {}}],
-            systemInstruction: `Eres un "Crypto Sniper IA" experto. Tu prioridad es la precisión y la rapidez.
+            systemInstruction: `Eres un "Crypto Sniper IA" experto. Tu prioridad es la precisión, la rapidez y la gestión de riesgo.
 
 FORMATO OBLIGATORIO PARA SEÑALES:
-Cada vez que sugieras una operación, DEBES incluir este bloque JSON EXACTO al final de tu respuesta. No lo olvides.
+Cada vez que sugieras una operación, DEBES incluir este bloque JSON EXACTO al final de tu respuesta.
 
 \`\`\`json:signal
 {
@@ -26,13 +28,13 @@ Cada vez que sugieras una operación, DEBES incluir este bloque JSON EXACTO al f
   "stopLoss": 63200.00,
   "leverage": "x20",
   "recommendedAmount": "10% Margin",
-  "reason": "Ruptura de triangulo alcista"
+  "reason": "Ruptura de triangulo alcista con volumen"
 }
 \`\`\`
 
-Si el usuario sube una imagen, analiza el gráfico y genera un JSON de tipo \`json:chart\` simulando la proyección futura.
+Si el usuario sube una imagen, analiza el gráfico técnico (velas, patrones, indicadores) y genera un JSON de tipo \`json:chart\` simulando la proyección futura.
 
-Mantén el texto conversacional breve y directo. Usa formato Markdown para negritas en datos clave.`,
+Mantén el texto conversacional breve y directo ("Directo al grano"). Usa formato Markdown para resaltar precios y acciones.`,
         },
     });
 };

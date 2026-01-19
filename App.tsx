@@ -442,14 +442,24 @@ const App: React.FC = () => {
               <BotIcon className="w-6 h-6 text-cyan-400" />
               <h1 className="text-lg md:text-xl font-bold text-white tracking-tight">Crypto Sniper <span className="text-cyan-400">AI</span></h1>
           </div>
-          <a
-            href="https://github.com/google/generative-ai-docs/tree/main/demos/palm-api-cookbook"
-            target="_blank"
-            rel="noopener noreferrer"
-            className="text-slate-400 hover:text-white transition-colors"
-          >
-            <GithubIcon className="w-5 h-5" />
-          </a>
+          
+          <div className="flex items-center gap-3">
+             <div className="hidden md:flex items-center gap-2 px-3 py-1 bg-slate-900 rounded-full border border-slate-700">
+                <div className="w-2 h-2 rounded-full bg-green-500 animate-pulse"></div>
+                <span className="text-xs font-mono text-green-400">System Online</span>
+             </div>
+             <button className="bg-cyan-600/20 hover:bg-cyan-600/30 text-cyan-400 border border-cyan-500/50 px-4 py-1.5 rounded-lg text-xs font-bold transition-all uppercase tracking-wider hover:shadow-[0_0_15px_rgba(34,211,238,0.2)]">
+                Connect Wallet
+             </button>
+             <a
+                href="https://github.com/google/generative-ai-docs/tree/main/demos/palm-api-cookbook"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="text-slate-400 hover:text-white transition-colors ml-2"
+            >
+                <GithubIcon className="w-5 h-5" />
+            </a>
+          </div>
         </header>
 
         {/* Crypto Ticker - Connected to live state */}
@@ -675,6 +685,7 @@ const App: React.FC = () => {
                     trades={executedTrades} 
                     currentOrder={currentOrder}
                     currentPrices={currentPrices}
+                    coins={coins}
                     onCloseTrade={handleCloseTrade}
                     onConfirmOrder={handleConfirmOrder}
                     onCancelOrder={() => setCurrentOrder(null)}

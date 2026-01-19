@@ -1,4 +1,3 @@
-
 import React from 'react';
 import { TradeSignal } from '../types';
 
@@ -8,71 +7,99 @@ interface TradeSignalCardProps {
 }
 
 export const TradeSignalCard: React.FC<TradeSignalCardProps> = ({ signal, onExecute }) => {
-    const isLong = signal.action.includes('COMPRAR');
-    const potentialGain = Math.abs(((signal.targetPrice - signal.entryPrice) / signal.entryPrice) * 100).toFixed(2);
+    const isLong = signal.action.includes('COMPRAR') || signal.action.includes('LONG');
     
+    // Calculate Percentages
+    const entry = signal.entryPrice;
+    const target = signal.targetPrice;
+    const stop = signal.stopLoss;
+    
+    const potentialGain = Math.abs(((target - entry) / entry) * 100);
+    const potentialLoss = Math.abs(((entry - stop) / entry) * 100);
+    
+    // Risk/Reward Ratio (Reward / Risk)
+    const risk = Math.abs(entry - stop);
+    const reward = Math.abs(target - entry);
+    const ratio = risk > 0 ? (reward / risk).toFixed(2) : 'N/A';
+
     return (
-        <div className="bg-slate-800 border-2 border-slate-700 rounded-xl p-0 overflow-hidden shadow-xl my-4 max-w-md">
+        <div className="bg-slate-900/80 border border-slate-700 rounded-xl overflow-hidden shadow-[0_0_20px_rgba(0,0,0,0.3)] my-6 max-w-md relative group hover:border-cyan-500/50 transition-all duration-300">
+            {/* Glow Effect */}
+            <div className={`absolute top-0 left-0 w-full h-1 ${isLong ? 'bg-gradient-to-r from-green-500 to-green-300' : 'bg-gradient-to-r from-red-500 to-red-300'}`}></div>
+
             {/* Header */}
-            <div className={`p-4 flex justify-between items-center ${isLong ? 'bg-green-900/30 border-b border-green-800/50' : 'bg-red-900/30 border-b border-red-800/50'}`}>
+            <div className="p-5 flex justify-between items-start bg-slate-800/40">
                 <div className="flex items-center gap-3">
-                    <div className={`w-10 h-10 rounded-full flex items-center justify-center font-bold text-lg ${isLong ? 'bg-green-600 text-white' : 'bg-red-600 text-white'}`}>
-                        {isLong ? 'L' : 'S'}
+                    <div className={`w-12 h-12 rounded-xl flex items-center justify-center font-bold text-xl shadow-inner ${isLong ? 'bg-green-500/20 text-green-400 border border-green-500/30' : 'bg-red-500/20 text-red-400 border border-red-500/30'}`}>
+                        {isLong ? '🚀' : '📉'}
                     </div>
                     <div>
-                        <h3 className="font-bold text-lg text-white">{signal.symbol}</h3>
-                        <span className={`text-xs font-bold px-2 py-0.5 rounded ${isLong ? 'bg-green-900 text-green-300' : 'bg-red-900 text-red-300'}`}>
-                            {signal.action}
-                        </span>
+                        <h3 className="font-bold text-xl text-white tracking-tight">{signal.symbol}</h3>
+                        <div className="flex items-center gap-2 mt-1">
+                            <span className={`text-[10px] font-bold px-2 py-0.5 rounded uppercase tracking-wider ${isLong ? 'bg-green-900/60 text-green-300 border border-green-700/50' : 'bg-red-900/60 text-red-300 border border-red-700/50'}`}>
+                                {isLong ? 'LONG / COMPRA' : 'SHORT / VENTA'}
+                            </span>
+                            <span className="text-[10px] font-mono text-yellow-400 bg-yellow-900/20 px-1.5 py-0.5 rounded border border-yellow-700/30">
+                                {signal.leverage}
+                            </span>
+                        </div>
                     </div>
                 </div>
                 <div className="text-right">
-                    <div className="text-xs text-slate-400">Apalancamiento</div>
-                    <div className="font-mono font-bold text-yellow-400">{signal.leverage}</div>
+                    <div className="text-[10px] text-slate-500 uppercase tracking-widest font-semibold mb-1">Riesgo/Beneficio</div>
+                    <div className="font-mono font-bold text-cyan-400 text-lg">1:{ratio}</div>
                 </div>
             </div>
 
-            {/* Content */}
-            <div className="p-4 space-y-4">
+            {/* Price Visualization */}
+            <div className="px-5 py-4 space-y-5">
                 
-                {/* Visual Range */}
-                <div className="flex justify-between text-sm mb-1 text-slate-400">
-                    <span>Entrada</span>
-                    <span>Meta (Exit)</span>
-                </div>
-                <div className="relative h-2 bg-slate-700 rounded-full w-full">
-                    <div className={`absolute top-0 bottom-0 left-0 rounded-full ${isLong ? 'bg-green-500' : 'bg-red-500'}`} style={{ width: '100%' }}></div>
-                </div>
-                <div className="flex justify-between font-mono font-bold text-lg">
-                    <span className="text-blue-300">${signal.entryPrice}</span>
-                    <span className={isLong ? 'text-green-400' : 'text-red-400'}>${signal.targetPrice}</span>
-                </div>
-
-                {/* Details Grid */}
-                <div className="grid grid-cols-2 gap-3 mt-4 bg-slate-900/50 p-3 rounded-lg">
-                    <div>
-                        <span className="text-xs text-slate-500 block">Stop Loss (Salida)</span>
-                        <span className="text-red-400 font-mono font-semibold">${signal.stopLoss}</span>
+                <div className="flex justify-between items-end font-mono">
+                    <div className="text-center">
+                        <span className="text-[10px] text-slate-500 block mb-1">ENTRADA</span>
+                        <span className="text-white font-bold text-lg bg-slate-800 px-2 py-1 rounded border border-slate-700">${entry}</span>
                     </div>
-                    <div>
-                        <span className="text-xs text-slate-500 block">Inversión Sugerida</span>
-                        <span className="text-cyan-300 font-mono font-semibold">{signal.recommendedAmount}</span>
-                    </div>
-                    <div className="col-span-2 pt-2 border-t border-slate-700 mt-1">
-                        <span className="text-xs text-slate-500 block">Potencial Ganancia</span>
-                        <span className="text-green-400 font-bold text-lg">+{potentialGain}% (sin apalancamiento)</span>
+                    <div className="mb-2 text-slate-600">➔</div>
+                    <div className="text-center">
+                        <span className="text-[10px] text-slate-500 block mb-1">META</span>
+                        <span className={`font-bold text-lg px-2 py-1 rounded border ${isLong ? 'text-green-400 bg-green-900/20 border-green-800' : 'text-red-400 bg-red-900/20 border-red-800'}`}>
+                            ${target}
+                        </span>
                     </div>
                 </div>
 
-                <div className="text-xs text-slate-400 italic">
-                    "{signal.reason}"
+                {/* Risk Bar */}
+                <div className="relative pt-4">
+                    <div className="flex justify-between text-[10px] text-slate-400 mb-1">
+                        <span>Stop Loss: <span className="text-red-400 font-mono">${stop}</span></span>
+                        <span>TP: <span className="text-green-400 font-mono">${target}</span></span>
+                    </div>
+                    <div className="h-2 bg-slate-800 rounded-full overflow-hidden flex">
+                        <div className="h-full bg-red-500/50" style={{ width: '30%' }}></div>
+                        <div className="h-full bg-slate-600" style={{ width: '2%' }}></div> {/* Entry marker */}
+                        <div className="h-full bg-green-500/50" style={{ width: '68%' }}></div>
+                    </div>
+                    <div className="flex justify-between text-[10px] mt-1 font-medium">
+                        <span className="text-red-400">-{potentialLoss.toFixed(2)}%</span>
+                        <span className="text-green-400">+{potentialGain.toFixed(2)}%</span>
+                    </div>
+                </div>
+
+                <div className="bg-slate-800/50 p-3 rounded-lg border border-slate-700/50">
+                     <div className="flex justify-between items-center mb-1">
+                        <span className="text-xs text-slate-400">Monto Sugerido:</span>
+                        <span className="text-sm font-bold text-white">{signal.recommendedAmount}</span>
+                     </div>
+                     <p className="text-xs text-slate-400 italic border-t border-slate-700/50 pt-2 mt-2">
+                        "{signal.reason}"
+                     </p>
                 </div>
 
                 <button 
                     onClick={onExecute}
-                    className={`w-full py-3 rounded-lg font-bold text-white shadow-lg transition-transform active:scale-95 ${isLong ? 'bg-green-600 hover:bg-green-500' : 'bg-red-600 hover:bg-red-500'}`}
+                    className={`w-full py-3 rounded-lg font-bold text-white shadow-lg transition-all transform active:scale-[0.98] hover:shadow-cyan-500/20 ${isLong ? 'bg-gradient-to-r from-green-600 to-green-500 hover:from-green-500 hover:to-green-400' : 'bg-gradient-to-r from-red-600 to-red-500 hover:from-red-500 hover:to-red-400'}`}
                 >
-                    APLICAR ESTA SEÑAL
+                    ⚡ EJECUTAR ORDEN
                 </button>
             </div>
         </div>

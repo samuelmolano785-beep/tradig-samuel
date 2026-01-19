@@ -20,6 +20,7 @@ export interface TradeSignal {
     leverage: string;
     recommendedAmount: string; // e.g., "10% del capital" or "$100"
     reason: string;
+    probability: number; // 0-100 score indicating confidence
 }
   
 export interface ChatMessage {

@@ -85,6 +85,19 @@ const questionSuggestions = [
     'Buscar oportunidades x10'
 ];
 
+const canExecuteTradeOld = (content: string) => {
+    const marketMatch = content.match(/\*\*(?:Mercado Sugerido|Activo|Activo Identificado):\*\*\s*\*\*(.*?)\*\*/);
+    const actionMatch = content.match(/\*\*(?:Acción Recomendada|Acción):\*\*\s*\*\*(.*?)\*\*/);
+    const entryMatch = content.match(/\*\s+\*\*Entrada:\*\*\s*\*\*(.*?)\*\*/);
+    return !!(marketMatch && actionMatch && entryMatch);
+};
+  
+const isTradeUpdate = (content: string) => {
+    const resultMatch = content.match(/\*\*Resultado:\*\*\s*\*\*(GANANCIA|PÉRDIDA)\*\*/);
+    const amountMatch = content.match(/\*\*Monto:\*\*\s*\*\*([0-9.,]+)\*\*/);
+    return !!(resultMatch && amountMatch);
+};
+
 const App: React.FC = () => {
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [prompt, setPrompt] = useState('Dame una Señal de Entrada');
@@ -155,7 +168,7 @@ const App: React.FC = () => {
                 {
                     id: Date.now().toString(),
                     role: 'model',
-                    content: '¡Hola! Soy tu Analista Crypto. Dime "¿Qué recomiendas hoy?" y te daré señales claras con precio de ENTRADA y SALIDA.'
+                    content: '¡Hola! Soy "Crypto Sniper Pro". Mi filtro de ALTA PROBABILIDAD está activo. Solo te mostraré setups con >80% de éxito.'
                 }
             ]);
         } catch (e) {
@@ -285,10 +298,9 @@ const App: React.FC = () => {
       }));
   };
 
-  const handleSendMessage = useCallback(async () => {
-    if ((!prompt.trim() && !image)) return;
-
-    // Initialize chat if missing (e.g. after error reset)
+  // Helper to trigger sending message (used by buttons or click-to-analyze)
+  const triggerSendMessage = async (text: string) => {
+       // Initialize chat if missing (e.g. after error reset)
     if (!chatRef.current) {
         try {
             chatRef.current = createChat();
@@ -299,11 +311,7 @@ const App: React.FC = () => {
         }
     }
 
-    const currentPrompt = prompt;
-    const currentImagePreview = imagePreview;
-    const currentImage = image;
-
-    const userMessage: ChatMessage = { id: Date.now().toString(), role: 'user', content: currentPrompt, imageUrl: currentImagePreview ?? undefined };
+    const userMessage: ChatMessage = { id: Date.now().toString(), role: 'user', content: text, imageUrl: imagePreview ?? undefined };
     setMessages(prev => [...prev, userMessage]);
     
     const modelMessageId = (Date.now() + 1).toString();
@@ -313,13 +321,21 @@ const App: React.FC = () => {
     setPrompt('');
     handleRemoveImage();
     
-    const messageForAI = `Usuario: "${currentPrompt}". Meta: Ganar el doble (x2). Plazo: "${timeframe}". Exchange: "${broker}"`;
+    const messageForAI = `Usuario pregunta: "${text}".
+INSTRUCCIÓN MAESTRA:
+1. Analiza el mercado con profundidad técnica.
+2. CALCULA LA PROBABILIDAD DE ÉXITO (0-100%).
+3. **SOLO SI la probabilidad es > 80%**, genera la señal JSON y el análisis completo.
+4. Si la probabilidad es < 80%, explícale al usuario que no hay entrada segura ("No Trade Zone") y qué nivel esperar.
+
+¡FILTRA ESTRICTAMENTE! Solo setups de ALTA PROBABILIDAD.
+Meta: Ganar x2. Plazo: "${timeframe}". Exchange: "${broker}"`;
 
     let chartJsonDetected = false;
     let signalJsonDetected = false;
 
     try {
-      const stream = await sendMessageStreamToChat(chatRef.current, messageForAI, currentImage ?? undefined);
+      const stream = await sendMessageStreamToChat(chatRef.current, messageForAI, image ?? undefined);
       
       for await (const chunk of stream) {
         const chunkText = chunk.text;
@@ -400,11 +416,7 @@ const App: React.FC = () => {
       }
     } catch (error: any) {
       console.error("Chat error:", error);
-      
-      // Critical: If we get a permission error (bad key), we MUST clear the chat reference
-      // so the next attempt tries to create a new one (picking up any env var changes)
       chatRef.current = null;
-
       let errorMessage = 'Lo siento, he encontrado un error al conectar con el mercado. Por favor, inténtalo de nuevo.';
       if (error.message?.includes('403') || error.message?.includes('leaked') || error.message?.includes('API key')) {
           errorMessage = '⚠️ Error de API: La clave API ha expirado o ha sido revocada por seguridad. Verifica tu configuración.';
@@ -424,14 +436,18 @@ const App: React.FC = () => {
     } finally {
       setIsLoading(false);
     }
-  }, [prompt, timeframe, image, imagePreview, broker]);
-  
-  const canExecuteTradeOld = (messageContent: string): boolean => {
-    return (/\*\*Acción Recomendada:\*\*/.test(messageContent) || /\*\*Acción:\*\*/.test(messageContent)) && /\*\s+\*\*Entrada:\*\*/.test(messageContent);
   };
-  
-  const isTradeUpdate = (messageContent: string): boolean => {
-    return /### Actualización de Operación/.test(messageContent);
+
+  const handleSendMessage = async () => {
+    if ((!prompt.trim() && !image)) return;
+    await triggerSendMessage(prompt);
+  };
+
+  const handleAnalyzeCoin = (symbol: string) => {
+      if (window.innerWidth < 1024) {
+          setActiveTab('chat');
+      }
+      triggerSendMessage(`Analiza ${symbol} completamente: Técnica, Fundamental y Señal.`);
   };
 
   return (
@@ -689,6 +705,7 @@ const App: React.FC = () => {
                     onCloseTrade={handleCloseTrade}
                     onConfirmOrder={handleConfirmOrder}
                     onCancelOrder={() => setCurrentOrder(null)}
+                    onAnalyzeCoin={handleAnalyzeCoin}
                 />
             </div>
 

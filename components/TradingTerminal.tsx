@@ -17,6 +17,7 @@ interface TradingTerminalProps {
   onCloseTrade: (tradeId: string, closePrice: number) => void;
   onConfirmOrder: (order: Omit<ExecutedTrade, 'id' | 'status'>) => void;
   onCancelOrder: () => void;
+  onAnalyzeCoin?: (symbol: string) => void; // New prop for click-to-analyze
 }
 
 const CopyIcon: React.FC<{ className?: string }> = ({ className }) => (
@@ -28,6 +29,12 @@ const CopyIcon: React.FC<{ className?: string }> = ({ className }) => (
 const TerminalIcon: React.FC<{ className?: string }> = ({ className }) => (
      <svg className={className} xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
         <polyline points="4 17 10 11 4 5"/><line x1="12" x2="20" y1="19" y2="19"/>
+    </svg>
+);
+
+const SearchIcon: React.FC<{ className?: string }> = ({ className }) => (
+    <svg className={className} xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+        <circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/>
     </svg>
 );
 
@@ -49,7 +56,7 @@ const ValueRow: React.FC<{ label: string; value: string | number | undefined, on
     );
 };
 
-export const TradingTerminal: React.FC<TradingTerminalProps> = ({ trades, currentOrder, currentPrices, coins, onCloseTrade, onConfirmOrder, onCancelOrder }) => {
+export const TradingTerminal: React.FC<TradingTerminalProps> = ({ trades, currentOrder, currentPrices, coins, onCloseTrade, onConfirmOrder, onCancelOrder, onAnalyzeCoin }) => {
   const [activeTab, setActiveTab] = useState<'positions' | 'market' | 'history'>('positions');
 
   const handleCloseClick = (trade: ExecutedTrade) => {
@@ -216,15 +223,24 @@ export const TradingTerminal: React.FC<TradingTerminalProps> = ({ trades, curren
 
             {activeTab === 'market' && (
                 <div className="space-y-2">
-                     <h3 className="text-xs font-bold text-slate-500 uppercase border-b border-slate-800 pb-2 mb-2">Watchlist en Vivo</h3>
+                     <div className="flex justify-between items-center border-b border-slate-800 pb-2 mb-2">
+                        <h3 className="text-xs font-bold text-slate-500 uppercase">Watchlist en Vivo</h3>
+                        <span className="text-[10px] text-cyan-400 flex items-center gap-1 animate-pulse">
+                            <SearchIcon className="w-3 h-3" /> Click para Analizar
+                        </span>
+                     </div>
                      {coins.map(coin => (
-                         <div key={coin.symbol} className="flex justify-between items-center p-3 bg-slate-800/30 rounded border border-slate-800 hover:border-slate-700 transition-colors cursor-default">
+                         <div 
+                            key={coin.symbol} 
+                            onClick={() => onAnalyzeCoin && onAnalyzeCoin(coin.symbol)}
+                            className="flex justify-between items-center p-3 bg-slate-800/30 rounded border border-slate-800 hover:border-cyan-500/50 hover:bg-slate-800/80 transition-all cursor-pointer group active:scale-[0.98]"
+                        >
                              <div className="flex items-center gap-3">
-                                 <div className={`w-8 h-8 rounded-full flex items-center justify-center bg-slate-800 font-bold text-[10px] text-slate-300 border border-slate-700`}>
+                                 <div className={`w-8 h-8 rounded-full flex items-center justify-center bg-slate-800 font-bold text-[10px] text-slate-300 border border-slate-700 group-hover:border-cyan-500/30 transition-colors`}>
                                      {coin.symbol.substring(0,3)}
                                  </div>
                                  <div>
-                                     <div className="font-bold text-sm text-slate-200">{coin.symbol}</div>
+                                     <div className="font-bold text-sm text-slate-200 group-hover:text-cyan-400 transition-colors">{coin.symbol}</div>
                                      <div className="text-[10px] text-slate-500">Vol: ${(Math.random() * 1000000).toFixed(0)}</div>
                                  </div>
                              </div>

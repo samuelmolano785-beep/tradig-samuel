@@ -357,16 +357,20 @@ Meta: Ganar x2. Plazo: "${timeframe}". Exchange: "${broker}"`;
 
                     if (chartJsonDetected) {
                         streamingChartData.current[modelMessageId] += chunkText;
-                        if (streamingChartData.current[modelMessageId].includes('```') && streamingChartData.current[modelMessageId].split('```').length > 2) {
-                            const fullJsonBlock = streamingChartData.current[modelMessageId];
-                            const jsonContent = fullJsonBlock.substring(fullJsonBlock.indexOf('{'), fullJsonBlock.lastIndexOf('}') + 1);
-                            try {
-                                const parsedChartData: PriceChartData = JSON.parse(jsonContent);
-                                lastMessage.chartData = parsedChartData;
-                                delete streamingChartData.current[modelMessageId];
-                                chartJsonDetected = false;
-                            } catch (e) {
-                                console.error("Failed to parse chart JSON:", e);
+                        const block = streamingChartData.current[modelMessageId];
+                        if (block.includes('```') && block.split('```').length > 2) {
+                            const start = block.indexOf('{');
+                            const end = block.lastIndexOf('}');
+                            if (start !== -1 && end !== -1 && end > start) {
+                                const jsonContent = block.substring(start, end + 1);
+                                try {
+                                    const parsedChartData: PriceChartData = JSON.parse(jsonContent);
+                                    lastMessage.chartData = parsedChartData;
+                                    delete streamingChartData.current[modelMessageId];
+                                    chartJsonDetected = false;
+                                } catch (e) {
+                                    console.error("Failed to parse chart JSON:", e);
+                                }
                             }
                         }
                     }
@@ -379,16 +383,20 @@ Meta: Ganar x2. Plazo: "${timeframe}". Exchange: "${broker}"`;
 
                     if (signalJsonDetected) {
                          streamingSignalData.current[modelMessageId] += chunkText;
-                         if (streamingSignalData.current[modelMessageId].includes('```') && streamingSignalData.current[modelMessageId].split('```').length > 2) {
-                             const fullJsonBlock = streamingSignalData.current[modelMessageId];
-                             const jsonContent = fullJsonBlock.substring(fullJsonBlock.indexOf('{'), fullJsonBlock.lastIndexOf('}') + 1);
-                             try {
-                                 const parsedSignal: TradeSignal = JSON.parse(jsonContent);
-                                 lastMessage.signalData = parsedSignal;
-                                 delete streamingSignalData.current[modelMessageId];
-                                 signalJsonDetected = false;
-                             } catch (e) {
-                                 console.error("Failed to parse signal JSON:", e);
+                         const block = streamingSignalData.current[modelMessageId];
+                         if (block.includes('```') && block.split('```').length > 2) {
+                             const start = block.indexOf('{');
+                             const end = block.lastIndexOf('}');
+                             if (start !== -1 && end !== -1 && end > start) {
+                                 const jsonContent = block.substring(start, end + 1);
+                                 try {
+                                     const parsedSignal: TradeSignal = JSON.parse(jsonContent);
+                                     lastMessage.signalData = parsedSignal;
+                                     delete streamingSignalData.current[modelMessageId];
+                                     signalJsonDetected = false;
+                                 } catch (e) {
+                                     console.error("Failed to parse signal JSON:", e);
+                                 }
                              }
                          }
                     }

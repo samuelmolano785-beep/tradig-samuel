@@ -10,6 +10,7 @@ import { TradingTerminal } from './components/TradingTerminal';
 import { PriceChart } from './components/PriceChart';
 import { CryptoTicker, CryptoPrice } from './components/CryptoTicker';
 import { TradeSignalCard } from './components/TradeSignalCard';
+import { ApiKeyModal } from './components/ApiKeyModal';
 
 const BotIcon: React.FC<{ className?: string }> = ({ className }) => (
   <svg className={className} xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
@@ -65,6 +66,12 @@ const TerminalIcon: React.FC<{ className?: string }> = ({ className }) => (
     </svg>
 );
 
+const WalletIcon: React.FC<{ className?: string }> = ({ className }) => (
+    <svg className={className} xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+        <path d="M21 12V7H5a2 2 0 0 1 0-4h14v4"/><path d="M3 5v14a2 2 0 0 0 2 2h16v-5"/><path d="M18 12a2 2 0 0 0 0 4h4v-4Z"/>
+    </svg>
+);
+
 // Initial Market Data
 const initialCoins: CryptoPrice[] = [
   { symbol: 'BTC/USDT', price: 64230.50, change: 1.2 },
@@ -99,6 +106,7 @@ const isTradeUpdate = (content: string) => {
 };
 
 const App: React.FC = () => {
+  const [apiKey, setApiKey] = useState<string>('');
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [prompt, setPrompt] = useState('Dame una Señal de Entrada');
   const [timeframe, setTimeframe] = useState('10 horas');
@@ -123,6 +131,26 @@ const App: React.FC = () => {
   // Streaming buffers
   const streamingChartData = useRef<{ [messageId: string]: string }>({});
   const streamingSignalData = useRef<{ [messageId: string]: string }>({});
+
+  // Load API Key from LocalStorage on mount
+  useEffect(() => {
+      const storedKey = localStorage.getItem('crypto_sniper_api_key');
+      if (storedKey) {
+          setApiKey(storedKey);
+      }
+  }, []);
+
+  const handleSaveApiKey = (key: string) => {
+      localStorage.setItem('crypto_sniper_api_key', key);
+      setApiKey(key);
+  };
+
+  const handleClearApiKey = () => {
+      localStorage.removeItem('crypto_sniper_api_key');
+      setApiKey('');
+      setMessages([]);
+      chatRef.current = null;
+  };
 
   // Initialize prices map
   useEffect(() => {
@@ -161,9 +189,9 @@ const App: React.FC = () => {
   }, []);
 
   useEffect(() => {
-    if (!chatRef.current) {
+    if (apiKey && !chatRef.current) {
         try {
-            chatRef.current = createChat();
+            chatRef.current = createChat(apiKey);
             setMessages([
                 {
                     id: Date.now().toString(),
@@ -173,9 +201,14 @@ const App: React.FC = () => {
             ]);
         } catch (e) {
             console.error("Error initializing chat", e);
+             // If init fails (likely bad key), clear it
+             if (e instanceof Error && (e.message.includes('API key') || e.message.includes('403'))) {
+                 handleClearApiKey();
+                 alert("La API Key introducida no es válida.");
+             }
         }
     }
-  }, []);
+  }, [apiKey]);
 
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
@@ -300,10 +333,15 @@ const App: React.FC = () => {
 
   // Helper to trigger sending message (used by buttons or click-to-analyze)
   const triggerSendMessage = async (text: string) => {
-       // Initialize chat if missing (e.g. after error reset)
+    if (!apiKey) {
+        alert("Falta la API Key.");
+        return;
+    }
+
+    // Initialize chat if missing (e.g. after error reset)
     if (!chatRef.current) {
         try {
-            chatRef.current = createChat();
+            chatRef.current = createChat(apiKey);
         } catch(e) {
             console.error("Failed to re-initialize chat:", e);
              setMessages(prev => [...prev, { id: Date.now().toString(), role: 'system', content: 'Error crítico: No se puede inicializar el servicio de IA. Verifica tu API Key.' }]);
@@ -428,6 +466,7 @@ Meta: Ganar x2. Plazo: "${timeframe}". Exchange: "${broker}"`;
       let errorMessage = 'Lo siento, he encontrado un error al conectar con el mercado. Por favor, inténtalo de nuevo.';
       if (error.message?.includes('403') || error.message?.includes('leaked') || error.message?.includes('API key')) {
           errorMessage = '⚠️ Error de API: La clave API ha expirado o ha sido revocada por seguridad. Verifica tu configuración.';
+          handleClearApiKey(); // Force reset if invalid
       }
 
       setMessages(prev => {
@@ -458,6 +497,10 @@ Meta: Ganar x2. Plazo: "${timeframe}". Exchange: "${broker}"`;
       triggerSendMessage(`Analiza ${symbol} completamente: Técnica, Fundamental y Señal.`);
   };
 
+  if (!apiKey) {
+      return <ApiKeyModal onSave={handleSaveApiKey} />;
+  }
+
   return (
     <div className="flex flex-col h-screen w-full bg-slate-900 font-sans text-slate-200 overflow-hidden">
         {/* Header */}
@@ -472,8 +515,13 @@ Meta: Ganar x2. Plazo: "${timeframe}". Exchange: "${broker}"`;
                 <div className="w-2 h-2 rounded-full bg-green-500 animate-pulse"></div>
                 <span className="text-xs font-mono text-green-400">System Online</span>
              </div>
-             <button className="bg-cyan-600/20 hover:bg-cyan-600/30 text-cyan-400 border border-cyan-500/50 px-4 py-1.5 rounded-lg text-xs font-bold transition-all uppercase tracking-wider hover:shadow-[0_0_15px_rgba(34,211,238,0.2)]">
-                Connect Wallet
+             <button 
+                onClick={handleClearApiKey}
+                className="bg-red-600/20 hover:bg-red-600/30 text-red-400 border border-red-500/50 px-4 py-1.5 rounded-lg text-xs font-bold transition-all uppercase tracking-wider hover:shadow-[0_0_15px_rgba(239,68,68,0.2)] flex items-center gap-2"
+                title="Desconectar API Key"
+             >
+                <WalletIcon className="w-4 h-4" />
+                Disconnect
              </button>
              <a
                 href="https://github.com/google/generative-ai-docs/tree/main/demos/palm-api-cookbook"

@@ -2,14 +2,14 @@
 import { GoogleGenAI, Chat, Part } from "@google/genai";
 import { fileToGenerativePart } from "../utils/fileUtils";
 
-// CRITICAL FIX: Assign process.env.API_KEY to a variable first.
-const apiKey = process.env.API_KEY;
-
-const getGenAI = () => new GoogleGenAI({ apiKey: apiKey });
+// Function to initialize AI with a dynamic key
+const getGenAI = (apiKey: string) => new GoogleGenAI({ apiKey: apiKey });
 
 // Chat
-export const createChat = (): Chat => {
-    const ai = getGenAI();
+export const createChat = (apiKey: string): Chat => {
+    if (!apiKey) throw new Error("API Key is missing");
+    
+    const ai = getGenAI(apiKey);
     return ai.chats.create({
         model: 'gemini-3-flash-preview',
         config: {

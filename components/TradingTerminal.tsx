@@ -1,10 +1,12 @@
-import React, { useState } from 'react';
+
+import React from 'react';
 import type { ExecutedTrade } from '../types';
 import { Card, CardContent, CardHeader, CardTitle } from './ui/Card';
 
 interface TradingTerminalProps {
   trades: ExecutedTrade[];
   currentOrder: Omit<ExecutedTrade, 'id' | 'status'> | null;
+  currentPrices: Record<string, number>;
   onCloseTrade: (tradeId: string, closePrice: number) => void;
   onConfirmOrder: (order: Omit<ExecutedTrade, 'id' | 'status'>) => void;
   onCancelOrder: () => void;
@@ -46,16 +48,24 @@ const ValueRow: React.FC<{ label: string; value: string | number | undefined, on
     );
 };
 
-export const TradingTerminal: React.FC<TradingTerminalProps> = ({ trades, currentOrder, onCloseTrade, onConfirmOrder, onCancelOrder }) => {
+export const TradingTerminal: React.FC<TradingTerminalProps> = ({ trades, currentOrder, currentPrices, onCloseTrade, onConfirmOrder, onCancelOrder }) => {
 
   const handleCloseClick = (trade: ExecutedTrade) => {
-    const closePriceStr = prompt(`Introduce el precio de cierre para ${trade.market}:`);
-    if (closePriceStr) {
-        const closePrice = parseFloat(closePriceStr);
-        if (!isNaN(closePrice)) {
-            onCloseTrade(trade.id, closePrice);
-        } else {
-            alert("Por favor, introduce un número válido.");
+    // Use live price if available, otherwise fallback to entry price or prompt
+    const currentPrice = currentPrices[trade.market] || trade.entryPrice;
+    
+    if (currentPrices[trade.market]) {
+        // Simple confirmation for better UX
+        if(confirm(`¿Cerrar posición en ${trade.market} a precio de mercado $${currentPrice.toFixed(2)}?`)) {
+            onCloseTrade(trade.id, currentPrice);
+        }
+    } else {
+        const closePriceStr = prompt(`Precio actual desconocido. Introduce precio de cierre para ${trade.market}:`);
+        if (closePriceStr) {
+            const closePrice = parseFloat(closePriceStr);
+            if (!isNaN(closePrice)) {
+                onCloseTrade(trade.id, closePrice);
+            }
         }
     }
   };
@@ -64,12 +74,21 @@ export const TradingTerminal: React.FC<TradingTerminalProps> = ({ trades, curren
       navigator.clipboard.writeText(text).catch(err => console.error('Failed to copy: ', err));
   };
 
-  const totalPnl = trades
-    .filter(trade => trade.status === 'Cerrada' && trade.pnl != null)
-    .reduce((sum, trade) => sum + (trade.pnl ?? 0), 0);
-    
   const openTrades = trades.filter(t => t.status === 'Abierta');
   const closedTrades = trades.filter(t => t.status === 'Cerrada');
+
+  const closedPnl = closedTrades.reduce((sum, trade) => sum + (trade.pnl ?? 0), 0);
+  
+  // Calculate unrealized PnL from open trades based on live prices
+  const unrealizedPnl = openTrades.reduce((sum, trade) => {
+      const currentPrice = currentPrices[trade.market];
+      if (!currentPrice) return sum;
+      const diff = currentPrice - trade.entryPrice;
+      const tradePnl = trade.action === 'COMPRAR' ? diff : -diff;
+      return sum + tradePnl; 
+  }, 0);
+
+  const totalPnl = closedPnl;
 
   return (
     <div className="flex flex-col h-full p-4 overflow-y-auto space-y-4">
@@ -95,85 +114,10 @@ export const TradingTerminal: React.FC<TradingTerminalProps> = ({ trades, curren
                             <ValueRow label="Stop Loss" value={currentOrder.stopLoss} onCopy={handleCopy} />
                             <ValueRow label="Take Profit" value={currentOrder.takeProfit} onCopy={handleCopy} />
                         </div>
-                        <p className="text-xs text-slate-500 pt-2 border-t border-slate-700">
-                            **Aviso:** Esto es una simulación. Usa los botones de copiar para introducir los datos en tu bróker real.
-                        </p>
                        <div className="flex gap-2 pt-2">
-                            <button onClick={() => onConfirmOrder(currentOrder)} className="flex-1 text-sm bg-green-600 hover:bg-green-700 text-white px-3 py-2 rounded">Confirmar Orden (Simulada)</button>
+                            <button onClick={() => onConfirmOrder(currentOrder)} className="flex-1 text-sm bg-green-600 hover:bg-green-700 text-white px-3 py-2 rounded shadow-lg shadow-green-900/20 font-bold">Confirmar</button>
                             <button onClick={onCancelOrder} className="text-sm bg-slate-600 hover:bg-slate-700 text-white px-3 py-2 rounded">Cancelar</button>
                        </div>
                     </div>
                 ) : (
-                    <p className="text-sm text-slate-500 text-center py-4">Haz clic en "Ejecutar Operación" en una recomendación del chat para cargarla aquí.</p>
-                )}
-            </CardContent>
-        </Card>
-
-        <Card className="bg-slate-800 border-slate-700 flex-grow">
-            <CardHeader>
-                <CardTitle className="flex items-center gap-2">
-                    <DollarSignIcon className="w-6 h-6" />
-                    Posiciones Abiertas y Cerradas
-                </CardTitle>
-            </CardHeader>
-            <CardContent>
-                <div className="mb-4 pb-3 border-b border-slate-700">
-                    <h4 className="font-semibold text-md mb-1">Resumen Diario</h4>
-                    <div className={`text-xl font-bold ${totalPnl >= 0 ? 'text-green-400' : 'text-red-400'}`}>
-                        {totalPnl.toFixed(2)} USD
-                    </div>
-                    <div className="text-xs text-slate-400">Ganancia/Pérdida Total</div>
-                </div>
-
-                <div className="space-y-4">
-                    <div>
-                        <h4 className="font-semibold text-cyan-400 mb-2 text-sm">Operaciones Abiertas ({openTrades.length})</h4>
-                        <div className="space-y-2">
-                            {openTrades.length > 0 ? openTrades.map(trade => (
-                                <div key={trade.id} className="bg-slate-700/50 p-3 rounded-md">
-                                    <div className="flex justify-between items-center">
-                                        <div>
-                                            <span className={`font-bold ${trade.action === 'COMPRAR' ? 'text-green-400' : 'text-red-400'}`}>
-                                                {trade.action}
-                                            </span>
-                                            <span className="font-semibold ml-2">{trade.market}</span>
-                                        </div>
-                                        <button onClick={() => handleCloseClick(trade)} className="text-xs bg-cyan-600 hover:bg-cyan-700 text-white px-2 py-1 rounded">Cerrar</button>
-                                    </div>
-                                    <div className="text-sm text-slate-400 mt-1">
-                                        Entrada: @ {trade.entryPrice.toFixed(2)}
-                                    </div>
-                                </div>
-                            )) : <p className="text-xs text-slate-500">No hay operaciones abiertas.</p>}
-                        </div>
-                    </div>
-                    <div>
-                        <h4 className="font-semibold text-cyan-400 mb-2 text-sm">Operaciones Cerradas ({closedTrades.length})</h4>
-                        <div className="space-y-2">
-                           {closedTrades.length > 0 ? closedTrades.map(trade => (
-                                <div key={trade.id} className="bg-slate-900/50 p-3 rounded-md opacity-70">
-                                    <div className="flex justify-between items-center">
-                                        <div>
-                                            <span className={`font-bold text-sm ${trade.action === 'COMPRAR' ? 'text-green-500' : 'text-red-500'}`}>
-                                                {trade.action}
-                                            </span>
-                                            <span className="font-semibold ml-2 text-sm">{trade.market}</span>
-                                        </div>
-                                        <div className={`font-bold text-sm ${trade.pnl! >= 0 ? 'text-green-400' : 'text-red-400'}`}>
-                                            {trade.pnl?.toFixed(2)} USD
-                                        </div>
-                                    </div>
-                                    <div className="text-xs text-slate-500 mt-1">
-                                        Entrada: {trade.entryPrice.toFixed(2)} &rarr; Cierre: {trade.closePrice?.toFixed(2)}
-                                    </div>
-                                </div>
-                           )) : <p className="text-xs text-slate-500">No hay operaciones cerradas.</p>}
-                        </div>
-                    </div>
-                </div>
-
-            </CardContent>
-        </Card>
-    </div>
-  );
-};
+                    <p className="text-sm text-slate-500 text-center py-4">Esperando señal de la IA

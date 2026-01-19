@@ -2,9 +2,8 @@
 import { GoogleGenAI, Chat, Part } from "@google/genai";
 import { fileToGenerativePart } from "../utils/fileUtils";
 
-// Assign to a variable first to avoid syntax errors if the env var replacement is empty in some build environments.
-const apiKey = process.env.API_KEY;
-const getGenAI = () => new GoogleGenAI({ "AIzaSyCZzOrruDL2uLNa3xnzJKPH5RLTEDo7_-U" });
+// FIX: Use process.env.API_KEY correctly with the labeled property 'apiKey'.
+const getGenAI = () => new GoogleGenAI({ apiKey: process.env.API_KEY });
 
 // Chat
 export const createChat = (): Chat => {

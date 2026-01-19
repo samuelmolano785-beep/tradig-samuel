@@ -2,7 +2,7 @@
 import { GoogleGenAI, Chat, GenerateContentResponse, Part } from "@google/genai";
 import { fileToGenerativePart } from "../utils/fileUtils";
 
-// FIX: Use process.env.API_KEY as required. The previous key was leaked and revoked.
+// FIX: Usar siempre process.env.API_KEY. La clave anterior fue revocada por seguridad.
 const getGenAI = () => new GoogleGenAI({ apiKey: process.env.API_KEY });
 
 // Chat

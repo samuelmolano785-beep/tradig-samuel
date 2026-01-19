@@ -149,14 +149,18 @@ const App: React.FC = () => {
 
   useEffect(() => {
     if (!chatRef.current) {
-        chatRef.current = createChat();
-        setMessages([
-            {
-                id: Date.now().toString(),
-                role: 'model',
-                content: '¡Hola! Soy tu Analista Crypto. Dime "¿Qué recomiendas hoy?" y te daré señales claras con precio de ENTRADA y SALIDA.'
-            }
-        ]);
+        try {
+            chatRef.current = createChat();
+            setMessages([
+                {
+                    id: Date.now().toString(),
+                    role: 'model',
+                    content: '¡Hola! Soy tu Analista Crypto. Dime "¿Qué recomiendas hoy?" y te daré señales claras con precio de ENTRADA y SALIDA.'
+                }
+            ]);
+        } catch (e) {
+            console.error("Error initializing chat", e);
+        }
     }
   }, []);
 
@@ -282,7 +286,18 @@ const App: React.FC = () => {
   };
 
   const handleSendMessage = useCallback(async () => {
-    if ((!prompt.trim() && !image) || !chatRef.current) return;
+    if ((!prompt.trim() && !image)) return;
+
+    // Initialize chat if missing (e.g. after error reset)
+    if (!chatRef.current) {
+        try {
+            chatRef.current = createChat();
+        } catch(e) {
+            console.error("Failed to re-initialize chat:", e);
+             setMessages(prev => [...prev, { id: Date.now().toString(), role: 'system', content: 'Error crítico: No se puede inicializar el servicio de IA. Verifica tu API Key.' }]);
+             return;
+        }
+    }
 
     const currentPrompt = prompt;
     const currentImagePreview = imagePreview;
@@ -383,16 +398,26 @@ const App: React.FC = () => {
             return newMessages;
         });
       }
-    } catch (error) {
+    } catch (error: any) {
       console.error("Chat error:", error);
+      
+      // Critical: If we get a permission error (bad key), we MUST clear the chat reference
+      // so the next attempt tries to create a new one (picking up any env var changes)
+      chatRef.current = null;
+
+      let errorMessage = 'Lo siento, he encontrado un error al conectar con el mercado. Por favor, inténtalo de nuevo.';
+      if (error.message?.includes('403') || error.message?.includes('leaked') || error.message?.includes('API key')) {
+          errorMessage = '⚠️ Error de API: La clave API ha expirado o ha sido revocada por seguridad. Verifica tu configuración.';
+      }
+
       setMessages(prev => {
           const newMessages = [...prev];
           const lastMessage = newMessages.find(m => m.id === modelMessageId);
           if(lastMessage && lastMessage.content === '') {
               lastMessage.role = 'system';
-              lastMessage.content = 'Lo siento, he encontrado un error al conectar con el mercado. Por favor, inténtalo de nuevo.';
+              lastMessage.content = errorMessage;
           } else {
-              newMessages.push({ id: Date.now().toString(), role: 'system', content: 'Lo siento, se interrumpió la conexión. Por favor, inténtalo de nuevo.' });
+              newMessages.push({ id: Date.now().toString(), role: 'system', content: errorMessage });
           }
           return newMessages;
       });
@@ -415,7 +440,7 @@ const App: React.FC = () => {
         <header className="flex items-center justify-between bg-slate-800/50 border-b border-slate-700 p-3 shadow-md flex-shrink-0 z-10">
           <div className="flex items-center space-x-2">
               <BotIcon className="w-6 h-6 text-cyan-400" />
-              <h1 className="text-lg md:text-xl font-bold text-white">Crypto Sniper IA</h1>
+              <h1 className="text-lg md:text-xl font-bold text-white tracking-tight">Crypto Sniper <span className="text-cyan-400">AI</span></h1>
           </div>
           <a
             href="https://github.com/google/generative-ai-docs/tree/main/demos/palm-api-cookbook"
@@ -435,19 +460,19 @@ const App: React.FC = () => {
             
             {/* Chat Column */}
             <div className={`flex flex-col flex-1 min-w-0 transition-opacity duration-200 ${activeTab === 'chat' ? 'opacity-100 z-10' : 'opacity-0 absolute inset-0 -z-10 lg:opacity-100 lg:relative lg:z-auto'}`}>
-                 <main className="flex-1 overflow-y-auto p-4 md:p-6 custom-scrollbar">
+                 <main className="flex-1 overflow-y-auto p-4 md:p-6 custom-scrollbar scroll-smooth">
                     <div className="max-w-4xl mx-auto pb-24 lg:pb-0">
                         {messages.map((msg) => (
                             <div key={msg.id} className={`flex items-start gap-4 mb-6 ${msg.role === 'user' ? 'flex-row-reverse' : ''}`}>
-                                <div className={`w-10 h-10 rounded-full flex items-center justify-center flex-shrink-0 ${msg.role === 'model' ? 'bg-cyan-600/20 text-cyan-400' : (msg.role === 'system' ? 'bg-red-500/20 text-red-400' : 'bg-slate-700 text-white')}`}>
-                                    {msg.role === 'model' ? <BotIcon className="w-6 h-6" /> : (msg.role === 'system' ? <span className="font-bold">!</span> : <span className="font-bold">TÚ</span>)}
+                                <div className={`w-10 h-10 rounded-full flex items-center justify-center flex-shrink-0 shadow-lg ${msg.role === 'model' ? 'bg-cyan-600/20 text-cyan-400 border border-cyan-500/30' : (msg.role === 'system' ? 'bg-red-500/20 text-red-400 border border-red-500/30' : 'bg-slate-700 text-white border border-slate-600')}`}>
+                                    {msg.role === 'model' ? <BotIcon className="w-6 h-6" /> : (msg.role === 'system' ? <span className="font-bold text-lg">!</span> : <span className="font-bold text-xs">TÚ</span>)}
                                 </div>
                                 <div className={`flex-1 max-w-[85%] ${msg.role === 'user' ? 'text-right' : ''}`}>
-                                    <div className={`rounded-2xl p-4 shadow-sm inline-block text-left ${msg.role === 'user' ? 'bg-cyan-600 text-white rounded-tr-none' : (msg.role === 'system' ? 'bg-red-900/30 border border-red-800 rounded-tl-none' : 'bg-slate-800 border border-slate-700 rounded-tl-none')}`}>
+                                    <div className={`rounded-2xl p-4 shadow-sm inline-block text-left ${msg.role === 'user' ? 'bg-cyan-600 text-white rounded-tr-none' : (msg.role === 'system' ? 'bg-red-900/30 border border-red-800 rounded-tl-none text-red-200' : 'bg-slate-800 border border-slate-700 rounded-tl-none')}`}>
                                         
                                         {msg.imageUrl && (
                                             <div className="mb-3">
-                                                <img src={msg.imageUrl} alt="Uploaded chart" className="max-w-full h-auto rounded-lg border border-slate-600 max-h-60 object-contain" />
+                                                <img src={msg.imageUrl} alt="Uploaded chart" className="max-w-full h-auto rounded-lg border border-slate-600 max-h-60 object-contain bg-slate-900" />
                                             </div>
                                         )}
 
@@ -517,12 +542,12 @@ const App: React.FC = () => {
                         ))}
                          {isLoading && (
                             <div className="flex items-start gap-4">
-                                <div className="w-10 h-10 rounded-full bg-cyan-600/20 text-cyan-400 flex items-center justify-center">
+                                <div className="w-10 h-10 rounded-full bg-cyan-600/20 text-cyan-400 flex items-center justify-center animate-pulse">
                                     <BotIcon className="w-6 h-6" />
                                 </div>
                                 <div className="bg-slate-800 border border-slate-700 rounded-2xl rounded-tl-none p-4 flex items-center gap-3">
                                     <Spinner className="text-cyan-400" />
-                                    <span className="text-slate-400 text-sm animate-pulse">Buscando las mejores señales...</span>
+                                    <span className="text-slate-400 text-sm animate-pulse">Analizando el mercado...</span>
                                 </div>
                             </div>
                         )}
@@ -531,7 +556,7 @@ const App: React.FC = () => {
                  </main>
 
                  {/* Input Area */}
-                 <div className="p-4 bg-slate-800/80 border-t border-slate-700 backdrop-blur-sm z-20">
+                 <div className="p-4 bg-slate-900/90 border-t border-slate-800 backdrop-blur-md z-20">
                     <div className="max-w-4xl mx-auto space-y-4">
                         
                         <div className="flex gap-2 overflow-x-auto no-scrollbar pb-1">
@@ -541,7 +566,7 @@ const App: React.FC = () => {
                                         <button 
                                             key={idx} 
                                             onClick={() => setPrompt(q)}
-                                            className="whitespace-nowrap px-3 py-1.5 bg-slate-700 hover:bg-slate-600 text-slate-300 rounded-full text-xs transition-colors border border-slate-600"
+                                            className="whitespace-nowrap px-3 py-1.5 bg-slate-800 hover:bg-slate-700 text-slate-300 rounded-full text-xs transition-colors border border-slate-700"
                                         >
                                             {q}
                                         </button>
@@ -559,13 +584,13 @@ const App: React.FC = () => {
                             ))}
                         </div>
 
-                        <div className="flex flex-wrap gap-4 text-sm text-slate-400 bg-slate-900/50 p-3 rounded-lg border border-slate-700/50">
+                        <div className="flex flex-wrap gap-4 text-sm text-slate-400 bg-slate-950/50 p-2 rounded-lg border border-slate-800/50">
                              <div className="flex items-center gap-2">
-                                <label className="text-xs uppercase font-bold tracking-wider text-slate-500">Tiempo:</label>
+                                <label className="text-xs uppercase font-bold tracking-wider text-slate-600">Tiempo:</label>
                                 <select 
                                     value={timeframe} 
                                     onChange={(e) => setTimeframe(e.target.value)}
-                                    className="bg-slate-800 border-none rounded text-slate-200 text-sm focus:ring-1 focus:ring-cyan-500 cursor-pointer py-1 px-2"
+                                    className="bg-transparent border-none rounded text-slate-300 text-xs font-semibold focus:ring-0 cursor-pointer py-1 px-1 hover:text-white"
                                 >
                                     <option value="1 hora">Scalping (1h)</option>
                                     <option value="4 horas">Intradía (4h)</option>
@@ -573,12 +598,13 @@ const App: React.FC = () => {
                                     <option value="24 horas">Swing (24h)</option>
                                 </select>
                             </div>
+                            <div className="w-px h-4 bg-slate-800"></div>
                             <div className="flex items-center gap-2">
-                                <label className="text-xs uppercase font-bold tracking-wider text-slate-500">Broker:</label>
+                                <label className="text-xs uppercase font-bold tracking-wider text-slate-600">Broker:</label>
                                 <select 
                                     value={broker} 
                                     onChange={(e) => setBroker(e.target.value)}
-                                    className="bg-slate-800 border-none rounded text-slate-200 text-sm focus:ring-1 focus:ring-cyan-500 cursor-pointer py-1 px-2"
+                                    className="bg-transparent border-none rounded text-slate-300 text-xs font-semibold focus:ring-0 cursor-pointer py-1 px-1 hover:text-white"
                                 >
                                     <option value="Binance">Binance</option>
                                     <option value="Bybit">Bybit</option>
@@ -588,7 +614,7 @@ const App: React.FC = () => {
                             </div>
                         </div>
 
-                        <div className="relative">
+                        <div className="relative group">
                             <textarea
                                 value={prompt}
                                 onChange={(e) => setPrompt(e.target.value)}
@@ -599,7 +625,7 @@ const App: React.FC = () => {
                                     }
                                 }}
                                 placeholder="Pídeme una señal de entrada o recomendación..."
-                                className="w-full bg-slate-950 text-white rounded-xl border border-slate-700 p-4 pr-32 focus:outline-none focus:ring-2 focus:ring-cyan-500/50 resize-none h-[60px] custom-scrollbar"
+                                className="w-full bg-slate-950 text-white rounded-xl border border-slate-700 p-4 pr-32 focus:outline-none focus:ring-2 focus:ring-cyan-500/50 focus:border-cyan-500/50 resize-none h-[60px] custom-scrollbar transition-all"
                             />
                             
                             {imagePreview && (
@@ -630,7 +656,7 @@ const App: React.FC = () => {
                                 <button 
                                     onClick={handleSendMessage}
                                     disabled={isLoading || (!prompt.trim() && !image)}
-                                    className="bg-cyan-600 hover:bg-cyan-500 text-white p-2 rounded-lg disabled:opacity-50 disabled:cursor-not-allowed transition-all shadow-lg shadow-cyan-900/20"
+                                    className="bg-cyan-600 hover:bg-cyan-500 text-white p-2 rounded-lg disabled:opacity-50 disabled:cursor-not-allowed transition-all shadow-lg shadow-cyan-900/20 active:scale-95"
                                 >
                                     {isLoading ? <Spinner className="w-5 h-5" /> : <PlayIcon className="w-5 h-5" />}
                                 </button>
@@ -642,7 +668,7 @@ const App: React.FC = () => {
 
             {/* Terminal Column (Desktop: Always visible / Mobile: Toggled) */}
              <div className={`
-                flex-col bg-slate-900 border-l border-slate-800 w-full lg:w-[400px] xl:w-[450px] transition-all duration-300
+                flex-col bg-slate-900 border-l border-slate-800 w-full lg:w-[400px] xl:w-[450px] transition-all duration-300 shadow-2xl
                 ${activeTab === 'terminal' ? 'flex absolute inset-0 z-20' : 'hidden lg:flex relative'}
             `}>
                 <TradingTerminal 
